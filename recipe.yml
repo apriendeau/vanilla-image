@@ -27,6 +27,14 @@ stages:
     - curl -fsSL https://pkgs.tailscale.com/stable/debian/sid.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list
     - apt-get update && apt-get install -y tailscale
 
+  - name: personal packages # Sample module using the built-in Apt module to install packages
+    type: apt
+    source:
+      packages:
+      - vim
+      - git
+      - curl
+
   - name: nvidia-official-repo
     type: shell
     commands:

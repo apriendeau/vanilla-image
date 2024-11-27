@@ -22,17 +22,20 @@ stages:
     - apt-get update
 
   # Put your custom actions behind this comment
+  - name: install-tailscale 
+    type: shell
+    commands:
+    - mkdir -p --mode=0755 /usr/share/keyrings
+    - curl -fsSL https://pkgs.tailscale.com/stable/debian/sid.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
+    - curl -fsSL https://pkgs.tailscale.com/stable/debian/sid.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list
+    - apt-get update && apt-get install -y tailscale  
 
-  - name: example-packages # Sample module using the built-in Apt module to install packages
+  - name: install-vim 
     type: apt
     source:
       packages:
       - vim
-
-  - name: example-commands # Sample module demonstrating the Shell module with custom commands
-    type: shell
-    commands:
-    - echo Example output
+      - build-essential-
 
   - name: example-modules # Sample module demonstrating importing local and remote modules
     type: includes

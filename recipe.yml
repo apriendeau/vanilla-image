@@ -1,15 +1,14 @@
-name: Custom Vanilla Desktop # Replace this name with your image name
-id: custom # Replace this ID with your image ID
+name: Vanilla Desktop
+id: desktop
+
 stages:
 - id: build
-  base: ghcr.io/vanilla-os/desktop:main # Optionally, Replace this image URL with a different one i.e. nvidia:main, etc
+  base: ghcr.io/vanilla-os/core:dev
   singlelayer: false
   labels:
-    maintainer: self-maintained # Optionally, Replace this with your name
+    maintainer: Vanilla OS Contributors
   args:
-    DEBIAN_FRONTEND: noninteractive # Set the image environment as non-interactive
-  
-  # Commands to run first before building the modules
+    DEBIAN_FRONTEND: noninteractive
   runs:
     commands:
       - echo 'APT::Install-Recommends "1";' > /etc/apt/apt.conf.d/01norecommends
@@ -18,45 +17,110 @@ stages:
   - name: init-setup
     type: shell
     commands:
-    - lpkg --unlock
-    - apt-get update
+    - echo 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games"' > /etc/environment
+    - sed -i '4,10d' /etc/profile
+    - apt update
+    - apt upgrade -y
+    - apt clean
+    - apt-mark hold snapd gnome-software-plugin-snap
+    - apt -y install squashfs-tools minisign
 
-  # Put your custom actions behind this comment
-  - name: install-tailscale 
+  - name: vanilla-tools
+    type: shell
+    source:
+      type: tar
+      url: https://github.com/Vanilla-OS/vanilla-tools/releases/download/v1.0.0/vanilla-tools.tar.gz
+      checksum: 0e1d92d9c9154f9a115e97b40ff692afa52ddd0d9f770a8ec67440bf1a48aa72
+    commands:
+    - mkdir -p /usr/bin
+    - cp /sources/vanilla-tools/vanilla-tools/lpkg /usr/bin/lpkg
+    - cp /sources/vanilla-tools/vanilla-tools/cur-gpu /usr/bin/cur-gpu
+    - chmod +x /usr/bin/lpkg
+    - chmod +x /usr/bin/cur-gpu
+
+  - name: install-tailscale # Sample module demonstrating the Shell module with custom commands
     type: shell
     commands:
     - mkdir -p --mode=0755 /usr/share/keyrings
     - curl -fsSL https://pkgs.tailscale.com/stable/debian/sid.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
     - curl -fsSL https://pkgs.tailscale.com/stable/debian/sid.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list
-    - apt-get update && apt-get install -y tailscale  
-
-  - name: install-vim 
-    type: apt
-    source:
-      packages:
-      - vim
-      - build-essential-
-
-  - name: example-modules # Sample module demonstrating importing local and remote modules
+    - apt-get update && apt-get install -y tailscale
+    
+  - name: packages-modules
     type: includes
     includes:
-      - modules/50-install-debs.yml # Sample local module present in this repository
-      - gh:vanilla-os/dev-image:main:modules/00-basics.yml # Sample GitHub remote module in the format: `gh:your-name/your-repo:branch:modules/file.yml`
-      - https://raw.githubusercontent.com/Vanilla-OS/dev-image/main/modules/05-go.yml # Sample full URL remote module
+      - modules/00-vanilla-desktop-base.yml
+      - modules/00-vanilla-backgrounds.yml
+      - modules/00-vanilla-first-setup.yml
+      - modules/00-vanilla-gnome-default-settings.yml
+      - modules/00-vanilla-system-operator.yml
+      - modules/00-vanilla-apx-gui.yml
+      - modules/00-vanilla-tour.yml
+      - modules/00-vanilla-sideload.yml
+      - modules/00-vanilla-updates-utility.yml
+      - modules/00-vanilla-prime-utility.yml
+      - modules/02-waydroid-modules.yml
+      - modules/03-fswarn.yml
+      - modules/10-vanilla-abroot-rollback-notifier.yml
+      - modules/20-gnome-core.yml
+      - modules/21-gnome-control-center.yml
+      - modules/30-gnome-essentials.yml
+      - modules/35-nautilus-terminal-rightclick.yml
+      - modules/40-gnome-appearance.yml
+      - modules/50-laptop-goodies.yml
+      - modules/60-media.yml
+      - modules/80-printers.yml
+      - modules/90-3d-utils.yml
+      - modules/100-accessibility.yml
+      - modules/110-fonts.yml
+      - modules/120-network.yml
+      - modules/121-disable-ssh-daemon.yml
+      - modules/130-plymouth.yml
+      - modules/131-plymouth-theme-vanilla.yml
+      - modules/140-password.yml
+      - modules/160-utilities.yml
+      - modules/170-gnome-software-vso-plugin.yml
+      - modules/200-gnome-common.yml
+      - modules/210-libs-extra.yml
+      - modules/300-hide-image-magick.yml
+      - modules/997-ensure-exec-hooks.yml
+      - modules/998-vanilla-cleanup.yml
+      - modules/999-pkg-cleanup.yml
+      - modules/999-clear-first-setup-steps-unit.yml
 
-  # Put your custom actions before this comment
+  - name: firstsetup-default-session
+    type: shell
+    commands:
+    - sed 's/Session=/Session=firstsetup/g' -i /usr/share/accountsservice/user-templates/administrator
+    - sed 's/Session=/Session=firstsetup/g' -i /usr/share/accountsservice/user-templates/standard
 
-  - name: set-image-name-abroot
-    type: includes
-    includes:
-      - modules/80-set-image-abroot-config.yml
+  - name: blackbox-rescue
+    type: shell
+    commands:
+    - echo "\nActions=rescue;\n[Desktop Action rescue]\nName=Rescue Mode\nExec=blackbox-terminal -c /bin/bash\nIcon=com.raggesilver.BlackBox" >> /usr/share/applications/com.raggesilver.BlackBox.desktop
+
+  - name: apx-vso-pico-shutdown-service
+    type: shell
+    commands:
+    - mkdir -p /etc/systemd/user/graphical-session.target.wants/
+    - ln -s /etc/systemd/user/apx-vso-pico.service /etc/systemd/user/graphical-session.target.wants/
+
+  - name: gnome-software-setup
+    type: shell
+    commands:
+    - rm /usr/lib/*/gnome-software/plugins-*/libgs_plugin_packagekit.so
 
   - name: cleanup
     type: shell
     commands:
-    - apt-get autoremove -y
-    - apt-get clean
+    - apt autoremove -y
+    - apt clean
     - lpkg --lock
+
+  - name: sysconf-setup
+    type: shell
+    commands:
+      - rsync -a /etc/ /sysconf/
 
   - name: fsguard
     type: fsguard
@@ -68,9 +132,9 @@ stages:
       - name: remove-prev-fsguard
         type: shell
         commands:
-          - rm -rf /FsGuard 
-          - rm -f ./minisign.pub ./minisign.key 
-          - chmod +x /usr/sbin/init
+          - rm -rf /FsGuard
+          - rm -f ./minisign.pub ./minisign.key
+          - chmod +x /usr/share/init.d/010-fsguard.sh
 
   - name: cleanup2
     type: shell

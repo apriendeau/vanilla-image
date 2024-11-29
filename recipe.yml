@@ -24,6 +24,13 @@ stages:
     includes:
       - modules/50-install-debs.yml
       - modules/60-tailscale.yml
+      - modules/70-xrdp.yml
+
+  - name: install-vim # Sample module using the built-in Apt module to install packages
+    type: apt
+    source:
+      packages:
+      - vim
 
   - name: nvidia-official-repo
     type: shell

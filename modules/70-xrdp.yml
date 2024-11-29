@@ -1,0 +1,7 @@
+name: install-xrdp
+type: shell
+commands:
+  - apt update
+  - apt install -y xrdp
+  - systemctl enable xrdp
+  - systemctl start xrdp

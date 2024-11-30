@@ -1,5 +1,0 @@
-name: install-xrdp
-type: shell
-commands:
-  - apt update
-  - apt install -y xrdp
